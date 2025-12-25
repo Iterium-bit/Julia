@@ -1,0 +1,18 @@
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.ji
+*.js
+*.log
+Manifest.toml
+
+# VS Code
+.vscode/
+
+# Output
+plots/
+*.png
+*.pdf
+
+# System
+.DS_Store
