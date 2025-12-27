@@ -26,7 +26,7 @@ println("\n=== Layer 3: Abstract Type + Dispatch")
 abstract type Animal end
 struct Dog <:Animal end
 struct Cat <:Animal end
-struct cow <:Animal end
+struct Cow <:Animal end
 
 function greet(a::Animal)
     println("Generic animal greetings.")
@@ -37,9 +37,28 @@ end
 function greet(c::Cat)
     println("Cat says mew.")
 end
-function greet(c::cow)
+function greet(C::cow)
     println("Caw says mooo!!!.")
 end
 greet(Dog())
-greet(cow())
+greet(Cow())
 greet(Cat())
+
+function interact(a::Dog, b::Cat)
+    println("Dog chases Cat.")
+end
+function interact(a::Cat, b::Dog)
+    println("Cat escapes to higher ground.")
+end
+interact(Dog(),Cat())
+interact(Cat(),Dog())
+interact(1,2.3)
+
+
+println("\n=== Layer 4:Parametric Dispatch ===")
+abstract type Particle end
+struct Electron<: Particle end
+struct Proton <:Particle end
+function scatter(a::T,b::T) where T <: Particle
+    println("")
+end
