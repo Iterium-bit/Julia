@@ -60,5 +60,33 @@ abstract type Particle end
 struct Electron<: Particle end
 struct Proton <:Particle end
 function scatter(a::T,b::T) where T <: Particle
-    println("")
+    println("Elastic scattering between identical particles.")
 end
+function scatter(a::Electron , b::Proton)
+    println("Electron-Proton Coulomb scattering.")
+end
+scatter(Electron(),Proton())
+#scatter(Proton(),Electron())
+scatter(Electron(),Electron())
+scatter(Proton(),Proton())
+
+println("\n=== Layer 5: Method Tables ===")
+
+methods(interact)
+
+function interact(a::Dog, b::Animal)
+    println("Dog interacting with some animal")
+end
+
+interact(Dog(), Cat())
+interact(Dog(), Dog())
+
+println("\n=== Layer 6: @which ===")
+
+@which interact(Dog(), Cat())
+@which interact(Dog(), Dog())
+function interact(a::Animal, b::Cat)
+    println("Some animal interacting with cat")
+end
+
+interact(Dog(), Cat())
