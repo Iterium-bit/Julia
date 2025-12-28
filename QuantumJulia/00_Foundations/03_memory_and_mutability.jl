@@ -39,7 +39,7 @@ x = 30   # This does NOT change 10 → it REBINDS x to a new value
 println("\nAfter Rebinding x:")
 println("x = ", x)
 println("y = ", y)
-
+   
 # CHEAT CODE:
 # x = 30  → changes the LABEL x
 # not the VALUE 10
