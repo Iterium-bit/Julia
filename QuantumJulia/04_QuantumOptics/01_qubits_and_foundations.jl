@@ -109,9 +109,9 @@ println("\nPROBLEM 3: Superposition and Normalization")
 # --- SOLUTION ---
 psi_raw = psi_up+psi_down
 display(psi_raw)
-println("Raw State Norm: $(norm(psi_raw))")
+println("Raw State Norm: $(LinearAlgebra.norm(psi_raw))")
 psi_plus = normalize(psi_raw)
-println("\nFinal Norm: $(norm(psi_plus))")
+println("\nFinal Norm: $(LinearAlgebra.norm(psi_plus))")
 println("Coefficients: $(psi_plus.data)")
 
 
@@ -315,80 +315,108 @@ println("Did the state returned to the initial state? $(psi_final ≈ psi_start)
 
 
 ## ------------------------------------------------------------------
-println("\nPROBLEM 9: The CHSH Inequality (Bell Test)")
+println("\nPROBLEM 9: Quantum vs. Classical Correlations")
 #
 # --- PHYSICS CONCEPTS ---
-# 1. The Setup:
-#    - Alice and Bob share a Bell State |Phi+> = (|00> + |11>)/sqrt(2).
-#    - They measure along different angles.
+# 1. Bell State (|Phi+>):
+#    - Perfectly correlated in Z basis: <Z1 Z2> = 1
+#    - Perfectly correlated in X basis: <X1 X2> = 1
+#    - This "Simultaneous Correlation" is the signature of Entanglement.
 #
-# 2. The CHSH Quantity S:
-#    S = <A1*B1> + <A1*B2> + <A2*B1> - <A2*B2>
-#    - Classical Limit: S <= 2
-#    - Quantum Limit:   S = 2*sqrt(2) ≈ 2.828
+# 2. Classical Mixture (50% |00> and 50% |11>):
+#    - Perfectly correlated in Z basis: <Z1 Z2> = 1
+#    - UNCORRELATED in X basis: <X1 X2> = 0
+#    - It mimics entanglement but fails when you change the basis.
+# ------------------------
 #
-# 3. The Operators:
-#    - Alice measures Z (A1) and X (A2).
-#    - Bob measures diagonal angles (Z+X and Z-X).
+# --- PROBLEM ---
+# Objective: Prove that Entanglement survives a basis change, but Classical states do not.
+#
+# Steps:
+# 1. Create a Bell State (Quantum).
+# 2. Create a Classical Mixed State (Identity mixture).
+# 3. Measure correlations in Z (sigmaz ⊗ sigmaz).
+# 4. Measure correlations in X (sigmax ⊗ sigmax).
+# 5. Compare the results.
+# ------------------------
+
+# --- SOLUTION ---
+
+b =SpinBasis(1//2)
+psi_bell = normalize(tensor(spindown(b),spindown(b)) + tensor(spinup(b),spinup(b)))    #  |Phi+>
+display(psi_bell)
+dm_up = projector(tensor(spinup(b),spinup(b)))          # Creates the Projection Operator
+dm_down = projector(tensor(spindown(b),spindown(b)))
+rho_classical = 0.5*(dm_down+dm_up)
+display(rho_classical)
+zz = tensor(sigmaz(b),sigmaz(b))
+xx = tensor(sigmax(b),sigmax(b))
+
+#    Z-Basis (Standard)
+Q_z = real(expect(zz,psi_bell))
+C_z = real(expect(zz,rho_classical))
+println("Z-Correlation (Quantum):   $Q_z")
+println("Z-Correlation (Classical): $C_z") 
+println("--> Both are perfectly correlated in Z.\n")
+
+#    X-Basis (Transverse)
+Q_x = real(expect(xx, psi_bell))
+C_x = real(expect(xx, rho_classical))
+println("X-Correlation (Quantum):   $Q_x") 
+println("X-Correlation (Classical): $C_x")
+
+println("\nCONCLUSION:")
+if (Q_x> 0.9) && (C_x < 0.1)
+    println("Proof Successful: Quantum entanglement implies correlation in ALL bases.")
+    println("Classical mixtures lose correlation when the basis changes.")
+else
+    println("Something went wrong.")
+end
+
+
+
+## ------------------------------------------------------------------
+println("\nPROBLEM 10: Commutators (The Root of Uncertainty)")
+#
+# --- PHYSICS CONCEPTS ---
+# 1. The Commutator:
+#    - Defined as [A, B] = A*B - B*A.
+#    - It measures the order dependence of operations.
+#
+# 2. Compatibility:
+#    - If [A, B] = 0: The observables are "Compatible". They can be known 
+#      simultaneously (share eigenstates).
+#    - If [A, B] != 0: They are "Incompatible". Measuring one disturbs the 
+#      other (Heisenberg Uncertainty).
+#
+# 3. Pauli Matrices:
+#    - [Sigma_X, Sigma_Z] = -2i * Sigma_Y.
+#    - This proves you cannot know the spin along X and Z simultaneously.
 # ------------------------
 #
 # --- PROBLEM ---
 # Objective:
-# Construct the Bell State and the 4 CHSH operators to verify S > 2.
+# Calculate the commutator of Sigma_X and Sigma_Z to prove they are incompatible.
 #
 # Steps:
-# 1. Create Bell State |Phi+>.
-# 2. Define Alice's operators: A1=Z, A2=X.
-# 3. Define Bob's operators: B1=(Z+X)/sqrt(2), B2=(Z-X)/sqrt(2).
-# 4. Construct the joint CHSH operator:
-#    Op = (A1⊗B1) + (A1⊗B2) + (A2⊗B1) - (A2⊗B2).
-# 5. Calculate expectation value <Phi+ | Op | Phi+>.
+# 1. Define basis and operators X, Z.
+# 2. Calculate Commutator C = X*Z - Z*X.
+# 3. Verify C is not zero (norm(C) > 0).
+# 4. Check Eigenstates: Apply X to a Z-eigenstate (|Up>) and see if it stays an eigenstate.
 # ------------------------
 
+# --- SOLUTION ---
 
-println("\n--- DEBUGGING CHSH PROBLEM (ISOLATED) ---")
-
-# 1. Define Basis
 b = SpinBasis(1//2)
-
-# 2. Define Alice (Standard)
-Az = sigmaz(b)
-Ax = sigmax(b)
-
-# 3. Define Bob (Explicit Matrices)
-#    We use standard ComplexF64 matrices to be 100% safe.
-mat_Bz = [1.0+0im  1.0+0im;  1.0+0im -1.0+0im] / sqrt(2)
-mat_Bx = [1.0+0im -1.0+0im; -1.0+0im -1.0+0im] / sqrt(2)
-
-Bz = DenseOperator(b, mat_Bz)
-Bx = DenseOperator(b, mat_Bx)
-
-# 4. CHECK TYPES (Crucial Step)
-println("Type check:")
-println("  Az: $(typeof(Az))") # Expect Operator
-println("  Bz: $(typeof(Bz))") # Expect Operator
-
-# 5. Build Terms Individually
-t1 = tensor(Az, Bz)
-t2 = tensor(Az, Bx) 
-t3 = tensor(Ax, Bz)
-t4 = tensor(Ax, Bx)
-
-println("  Term 1 (Tensor): $(typeof(t1))") # Expect Operator
-
-# 6. Sum them up CAREFULLY
-# The issue is that t1 + t2 + t3 - t4 might collapse to a scalar
-# Let's build it step by step:
-op = t1 + t2
-println("  After adding t1+t2: $(typeof(op))")
-
-op = op + t3
-println("  After adding t3: $(typeof(op))")
-
-# Create negative t4 properly
-neg_t4 = -1 * t4  # Use scalar multiplication to create negative operator
-println("  Negative t4: $(typeof(neg_t4))")
-
-op = op + neg_t4  # Now add the negative operator
-println("  Total Op after adding -t4: $(typeof(op))")
-
+Sx = sigmax(b)
+Sz = sigmaz(b)
+C = Sx*Sz-Sz*Sx
+println("Commutator [X, Z]:")
+display(C)
+norm = LinearAlgebra.norm(C) 
+println("Are X and Z Compatible ?$(norm <1e-10)")
+psi_up = spinup(b)
+psi_new = Sx*psi_up
+overlap = abs(dagger(psi_up)*psi_new)
+println("Overlap of X|Up> with |Up>: $overlap")
+println("Since overlap is 0, |Up> is definitely NOT an eigenstate of X.")
