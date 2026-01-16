@@ -395,3 +395,70 @@ end
 
 # --- SOLUTION ---
 println("\n--- Problem 18: Quantum Fidelity Check ---")
+
+psi_vac = fockstate(b,0)
+n_values = [0.1,1.0,5.0]
+println("Target <n> | Temperature T | Fidelity (Overlap)")
+for n_val in n_values
+    t_val = 1.0/log(1+1/n_val)
+    rho_th = thermalstate(number(b),t_val)
+    fid = real(expect(rho_th,psi_vac))
+   s_n = rpad(n_val,10)
+   s_t = rpad(round(t_val , digits=3),13)
+   s_f = round(fid,digits = 4)
+    println("$s_n | $s_t | $s_f")
+end
+println("\nAs Temperature rises, the state looks less like Vacuum.")
+
+
+
+## ------------------------------------------------------------------
+# PROBLEM 19: The Beam Splitter (Composite Systems)
+#
+# --- PHYSICS CONCEPTS ---
+# 1. Tensor Product (Composite Systems):
+#    To describe two modes (A and B), we combine their Hilbert spaces:
+#    Basis_total = Basis_A (x) Basis_B
+#
+# 2. The Beam Splitter:
+#    It mixes the energy of two modes. A 50:50 splitter creates a
+#    superposition where photons can exit either port.
+# ------------------------
+#
+# --- PROBLEM ---
+# Objective:
+# Create a Composite Basis for two modes (N=2 each). Define the state |1, 1>
+# (one photon in each mode). Verify the total photon number is conserved (1+1=2).
+#
+# Steps:
+# 1. Define b_mode = FockBasis(2) (Truncated small for simplicity).
+# 2. Define b_total = tensor(b_mode, b_mode).
+# 3. Create state psi = |1> (x) |1>.
+# 4. Measure photon number in Mode A and Mode B separately.
+# ------------------------
+
+# --- SOLUTION ---
+println("\n--- Problem 19: Composite Systems (Beam Splitter Setup) ---")
+
+
+b_mode = FockBasis(2)
+b_total = tensor(b_mode, b_mode)
+println("Basis Dimensions: $(b_total.shape)")
+#    embed(basis, index, operator) tells Julia which mode to act on.
+#    Mode 1 is Left, Mode 2 is Right.
+
+n1 = embed(b_total, 1, number(b_mode))
+n2 = embed(b_total, 2, number(b_mode))
+psi_1 = fockstate(b_mode, 1)
+psi_input = tensor(psi_1, psi_1) 
+
+println("State created: |1> (x) |1>")
+
+avg_n1 = real(expect(n1, psi_input))
+avg_n2 = real(expect(n2, psi_input))
+
+println("Photons in Mode A: $avg_n1")
+println("Photons in Mode B: $avg_n2")
+
+avg_total = real(expect(n1 + n2, psi_input))
+println("Total Photons:     $avg_total")
