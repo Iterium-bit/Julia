@@ -61,17 +61,84 @@ println("\nAt t=1.0, <Z> should be -1.0 (Spin Down).")
 println("At t=2.0, <Z> should be +1.0 (Spin Up).")
 
 ## ------------------------------------------------------------------
-# PROBLEM 23: Pure Dephasing (Noise without Energy Loss)
+# PROBLEM 22: The Jaynes-Cummings Model (Atom-Light Interaction)
 #
 # --- PHYSICS CONCEPTS ---
-# 1. Dephasing (T2 Process):
-#    - Spontaneous Emission (T1) flips |Up> to |Down> (Energy loss).
-#    - Dephasing (T2) randomizes the phase phi in |psi> = |0> + e^iphi|1>.
-#    - The "Coherence" (off-diagonal terms) vanishes, but "Population" stays.
+# 1. The Setup:
+#    A Two-Level Atom (Spin) interacts with a Cavity Mode (Harmonic Oscillator).
+#    Basis = Atom (x) Field.
 #
-# 2. The Operator:
-#    J = sigma_z.
-#    Since sigma_z commutes with the energy basis (|0>, |1>), it doesn't cause jumps.
-#    It only scrambles the phase.
+# 2. The Hamiltonian:
+#    H = w_c * a'a + w_a * sz/2 + g * (a' * sm + a * sp)
+#    - First two terms: Energies of Field and Atom.
+#    - Last term (Interaction): 
+#         a' * sm: Creates photon, Destroys atomic excitation (Atom -> Field).
+#         a  * sp: Destroys photon, Creates atomic excitation (Field -> Atom).
+#
+# 3. Vacuum Rabi Oscillations:
+#    If we start with (|Excited>, |0 photons>), the atom emits a photon 
+#    into the cavity, becomes |Ground>, absorbs it back, and repeats.
 # ------------------------
-println("\n--- Problem 23: Pure Dephasing ---")
+#
+# --- PROBLEM ---
+# Objective:
+# Simulate a resonant system (w_c = w_a = 0) with coupling strength g = 1.0.
+# Initial State: Atom Excited (|Up>), Cavity Empty (|0>).
+# Verify that energy swaps perfectly between the Atom and the Cavity.
+#
+# Steps:
+# 1. Define b_atom (Spin 1/2) and b_field (Fock N=5).
+# 2. Define Composite Basis.
+# 3. Construct Hamiltonian H_JC = g * (a_dag * sm + a * sp).
+# 4. Evolve and measure <sigma_z> (Atom) and <n> (Field).
+# ------------------------
+
+# --- SOLUTION ---
+println("\n--- Problem 22: Jaynes-Cummings Model ---")
+b_atom = SpinBasis(1//2)
+b_field = FockBasis(5)
+b_total = tensor(b_atom,b_field)
+#    We use 'embed' to put operators in the correct space.
+#    Index 1 = Atom, Index 2 = Field
+sm = embed(b_total,1,sigmam(b_atom))       # sigmam(\tensor)I_field
+sp = embed(b_total,1,sigmap(b_atom))
+sz = embed(b_total,1,sigmaz(b_atom))
+a = embed(b_total,2,destroy(b_field))      # I_atom(\tensor)a
+at = embed(b_total,2,create(b_field))
+n_op = embed(b_total,2,number(b_field))
+
+g = 1.0
+H_JC = g * (at * sm + a * sp)
+psi_atom = spinup(b_atom)
+psi_field = fockstate(b_field, 0)
+psi_0 = tensor(psi_atom, psi_field)
+println("Initial State: Atom Excited (+1), Cavity Empty (0)")
+function measure_jc(t, psi)
+    z_val = real(expect(sz, psi))
+    n_val = real(expect(n_op, psi))
+    return [z_val, n_val]
+end
+tspan = [0.0:0.1:4.0;]
+tout, results = timeevolution.schroedinger(tspan, psi_0, H_JC; fout=measure_jc)
+println("\nTime  | Atom <Z> | Field <n> | Swap Visualization")
+for i in 1:length(tout)
+    t = tout[i]
+    z = results[i][1]
+    n = results[i][2]
+    # Visualization Logic:
+    # If Atom is Up (z=1), print "ATOM".
+    # If Field has Photon (n=1), print "PHOTON".
+    # Since they swap, the text should move back and forth.
+    bar_atom  = repeat("A", Int(round((z + 1) * 5))) # 0 to 10 A's
+    bar_field = repeat("P", Int(round(n * 10)))      # 0 to 10 P's
+    
+    if i % 3 == 1
+        s_t = rpad(t, 4)
+        s_z = rpad(round(z, digits=2), 5)
+        s_n = rpad(round(n, digits=2), 5)
+        println("t=$s_t| Z=$s_z  | n=$s_n  | $bar_atom$bar_field")
+    end
+end
+
+println("\nWhen Atom is -1 (Down), Field should be 1.0 (Photon).")
+println(" Total Excitation is conserved.")
