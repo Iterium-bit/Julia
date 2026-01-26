@@ -50,7 +50,7 @@ p = plot( tout,z_vals,
 )
 hline!([0,0],label ="Superposition", linestyle = :dash,colour =:gray)
 
-#display(p)
+display(p)
 # output_filename = "05_Visualization/01_problem1_rabi.png"
 # savefig(output_filename)
 
@@ -100,7 +100,7 @@ for omega in omegas
     local tout,z_vals = timeevolution.schroedinger(tspan,psi_0,H;fout = measure_z)
     plot!(p,tout,z_vals,label ="Ω = $omega",lw =4)
 end
-#display(p)
+display(p)
 
 
 
@@ -136,7 +136,7 @@ tout,results = timeevolution.schroedinger(tspan,psi_0,H,fout = Measeure_bloch)
 y_vals = [r[1] for r in results]
 z_vals = [r[2] for r in results]
 p = plot(y_vals,z_vals,Label = "Bloch Trajectory",xlabel = "Expectation <x>",ylabel = "Expectation <z>",title = "Qubit Rotation",lw =3,arrow = true,aspect_rati0=1)
-#display(p)
+display(p)
 
 
 
@@ -190,7 +190,7 @@ y_data = [r[2] for r in results]
 p_pop = plot(tout,z_data,label = "<z>",color =:blue,ylabel = "Population",lw = 2,title = "Correlated Dynamics")
 p_coh = plot(tout,y_data,label = "<y>",color =:red,ylabel = "Coherence",lw = 2)
 p = plot(p_pop,p_coh,layout = (2,1),size = (600,600),xlabel = "Time")
-#display(p)
+display(p)
 
 
 
@@ -231,7 +231,7 @@ plot!(p, tout, z_data,
     color=:red, 
     lw=3
 )
-#display(p)
+display(p)
 
 
 
@@ -273,7 +273,7 @@ p = plot(tout,z_decay,label = "Spontaneous Emission",
     xlabel = "Time (t)",ylabel = "Population<Z>",
     title = "Energy relaxation",lw = 3,color =:black)
 hline!(p,[-1.0],label ="Ground State",linestyle =:dash,color =:grey)  # [-1.0] here tells where to draw the dashed line
-#display(p)
+display(p)
 
 
 
@@ -314,3 +314,254 @@ println("\nPROBLEM 7: Damped Rabi Oscillations")
     title = "Drive vs. Decay",lw = 3,color=:black)
 hline!(p,[0.0],label ="Steady State",linestyle=:dot,color=:grey)
 display(p)
+
+
+
+## ------------------------------------------------------------------
+println("\nPROBLEM 8: Pure Dephasing (T2) - The Phase Killer")
+#
+# --- PHYSICS CONCEPTS ---
+# 1. The Operator:
+#    - Relaxation (T1) uses J = sigma_minus (Energy loss).
+#    - Dephasing (T2) uses J = sigma_z.
+#      This means the environment "measures" the qubit (Z) but doesn't flip it.
+#
+# 2. The Setup:
+#    - We start in a Superposition state |+> (on the Equator).
+#    - We turn OFF the Hamiltonian (H=0).
+#    - Result: <X> (Coherence) should decay to 0.
+#    - Result: <Z> (Population) should stay constant (Energy conserved).
+# ------------------------
+#
+# --- STEPS ---
+# 1. Start in state |+> = (|0> + |1>) / sqrt(2).
+# 2. Set H = 0 (No drive).
+# 3. Set J = [sigmaz(b)] with rate 0.5.
+# 4. Measure <X> (to see decay) and <Z> (to see conservation).
+# 5. Plot both on one graph.
+# ------------------------
+
+# --- SOLUTION ---
+b = SpinBasis(1//2)
+psi_0 = normalize((spinup(b)+spindown(b)))
+H = 0*sigmax(b)
+J = [sigmaz(b)]
+rates = [0.5]
+function measure_dephasing(t, rho)
+    x = real(expect(sigmax(b), rho)) # Coherence (Should die)
+    z = real(expect(sigmaz(b), rho)) # Population (Should survive)
+    return [x, z]
+end
+tspan = [0.0:0.05:10.0;]
+tout, res = timeevolution.master(tspan, psi_0, H, J; rates=rates, fout=measure_dephasing)
+x_data = [r[1] for r in res]
+z_data = [r[2] for r in res]
+p = plot(tout,x_data,label = "Coherence <X>",color=:red,lw = 3,
+    ylabel= "Expectation Value",xlabel ="Time(t)",title = "Pure Dephasing")
+plot!(p, tout,z_data,label = "Population<z>",color =:blue,linestyle =:dash,lw =3)
+display(p)
+
+
+
+## ------------------------------------------------------------------
+println("\nPROBLEM 9: The Quantum Harmonic Oscillator")
+#
+# --- PHYSICS CONCEPTS ---
+# 1. The Fock Basis:
+#    Unlike spins (which have 2 levels: Up/Down), oscillators have infinite levels
+#    (0, 1, 2... photons). We must truncate this at a cutoff 'N'.
+#
+# 2. The Hamiltonian:
+#    H = omega * a^dagger * a
+#    This represents a particle trapped in a parabolic potential (like a spring).
+#    Energy levels are equally spaced: E_n = hbar * omega * n.
+#
+# 3. Coherent States (|alpha>):
+#    These are the "most classical" states. They are eigenstates of the annihilation
+#    operator 'a'. They oscillate back and forth without changing shape (if H is harmonic).
+# ------------------------
+#
+# --- PROBLEM ---
+# Objective:
+# Simulate a Coherent State with alpha = 2.0 evolving under a Harmonic Hamiltonian.
+# Measure the Position Operator X = (a + a^dagger).
+# We expect to see a perfect sinusoidal oscillation (Classical Motion).
+#
+# --- STEPS ---
+# 1. Define FockBasis with cutoff N=20.
+# 2. Initialize state |psi_0> = coherentstate(alpha=2.0).
+# 3. Define H = 1.0 * number(b).
+# 4. Measure Position <X> = <a + a^dagger>.
+# ------------------------
+
+# --- SOLUTION ---
+N = 20
+b = FockBasis(N)
+alpha = 2.0
+psi_0 = coherentstate(b,alpha)  #(coherentstate(basis,mean_number)), alpha = mean for coherent states
+omega = 1.0
+H = omega*number(b)
+x_op = (destroy(b) + create(b))
+function measure_position(t,psi)
+    return real(expect(x_op,psi))
+end
+tspan = [0.00:0.1:20.0;]
+tout, result = timeevolution.schroedinger(tspan,psi_0,H;fout = measure_position)
+p = plot(tout,result,label = "Position <x>",xlabel = "Time(t)",ylabel = "Position",
+    title = "Harmonic Oscillator (Coherent State)",lw =3,color=:black)
+display(p)
+
+
+
+## ------------------------------------------------------------------
+println("\nPROBLEM 10: Photon Loss (Damped Oscillator)")
+#
+# --- PHYSICS CONCEPTS ---
+# 1. Optical Decay:
+#    In a cavity, photons leak out. The Jump Operator is simply 'a' (destroy).
+#    J = [destroy(b)].
+#
+# 2. Effect on Coherent States:
+#    A coherent state remains a coherent state during decay, but its amplitude |alpha|
+#    decreases exponentially.
+#    The oscillation amplitude should shrink, spiraling to 0 (Vacuum).
+# ------------------------
+#
+# --- PROBLEM ---
+# Objective:
+# Take the system from Problem 9 and add dissipation (Photon Loss).
+# Use a decay rate of kappa = 0.1.
+# Plot the Position <X> to see the damped oscillation.
+#
+# --- STEPS ---
+# 1. Reuse H and psi_0 from Problem 9.
+# 2. Define J = [destroy(b)] with rate [0.1].
+# 3. Solve using Master Equation.
+# 4. Plot Position <X> vs Time.
+# ------------------------
+
+# --- SOLUTION ---
+b = FockBasis(20)
+psi_0 = coherentstate(b,2.0)  
+H = 1.0*number(b)
+j = [destroy(b)]
+rates = [0.1]
+x_op = create(b)+destroy(b)
+function measeure_dampedpos(t,rho)
+    return real(expect(x_op,rho))
+end
+tspan = [0.0:0.1:30.0;]
+tout,x_damped = timeevolution.master(tspan,psi_0,H,j;rates = rates,fout = measeure_dampedpos)
+p = plot(tout,x_damped,label = "Damped Position",ylabel="Position <x>",xlabel = "Time(t)",
+    title="Photon Loss(Damped Oscillator)",lw =3,color =:black)
+hline!(p,[0.0],label = "Vacuum Level",linestyle =:dash,color =:grey)
+display(p)
+
+
+
+## ------------------------------------------------------------------
+println("\nPROBLEM 11: Finite Temperature Oscillator (Heating & Cooling)")
+#
+# --- PHYSICS CONCEPTS ---
+# 1. Thermal Bath:
+#    A real environment pushes the system toward a "Thermal State", not just Vacuum.
+#    It involves two competing processes:
+#    - Decay (losing photons): J = destroy(b)
+#    - Heating (gaining photons): J = create(b)
+#
+# 2. The Steady State:
+#    The system will settle into a balance where Rate_in = Rate_out.
+#    The final average photon number <n> depends on the ratio of Heating/Cooling.
+# ------------------------
+#
+# --- PROBLEM ---
+# Objective:
+# Start the oscillator in the Vacuum state |0>.
+# Apply Cooling (rate=1.0) and Heating (rate=0.5).
+# Measure the Photon Number <n> = a^dagger * a.
+# We expect <n> to rise from 0 and settle at a finite thermal value.
+#
+# --- STEPS ---
+# 1. Define FockBasis(N=20).
+# 2. Start in Vacuum: psi_0 = fockstate(b, 0).
+# 3. Define J = [destroy(b), create(b)].
+# 4. Define rates = [1.0, 0.5].
+# 5. Measure <n>.
+# ------------------------
+
+# --- SOLUTION ---
+N = 20
+b = FockBasis(N)
+psi_0 = fockstate(b,0)  # fockstate(Basis,state)
+H = 0*number(b)
+#    Channel 1: Decay (Standard loss)
+#    Channel 2: Heating (Thermal pump)
+J = [destroy(b),create(b)]
+rates = [1.0,0.5]
+n_op = number(b)
+function measeure_n(t,rho)
+    real(expect(n_op,rho))    
+end
+tspan = [0.0:0.1:10.0;]
+tout,results = timeevolution.master(tspan,psi_0,H,J;rates = rates,fout = measeure_n)
+p = plot(tout,results,label = "Photon Number <n>",xlabel = "Time(t)",ylabel="Average Photons",
+    title = "Heating vs Cooling",lw =3,color=:black)
+hline!(p,[0.0],label="Thermal Equilibrium",linestyle =:dash,color=:grey)
+display(p)
+
+
+
+
+## ------------------------------------------------------------------
+println("\nPROBLEM 12: Phase Noise (Elastic Scattering)")
+#
+# --- PHYSICS CONCEPTS ---
+# 1. The Operator:
+#    For Phase Noise, the environment "measures" the photon number without destroying photons.
+#    J = [number(b)]  (which is a^dagger * a).
+#
+# 2. The Effect:
+#    - Population <n> (Energy) stays CONSTANT.
+#    - Position <X> (Coherence) DECAYS to 0.
+#    The state turns from a "Coherent State" (Laser) into a "Thermal State" ring.
+# ------------------------
+#
+# --- PROBLEM ---
+# Objective:
+# Start with a Coherent State (alpha = 2.0).
+# Apply Phase Noise (rate = 0.5).
+# Measure <X> (should die) and <n> (should survive).
+#
+# --- STEPS ---
+# 1. Define FockBasis(N=20).
+# 2. State |psi_0> = coherentstate(alpha=2.0).
+# 3. Define J = [number(b)].
+# 4. Measure <X> and <n>.
+# ------------------------
+
+# --- SOLUTION ---
+N = 20
+b =FockBasis(N)
+H = 0*number(b)
+psi_0 = coherentstate(b,2.0)
+J = [number(b)]
+rates = [0.5]
+x_op = create(b)+destroy(b)
+n_op = number(b)
+tspan = [0.0:0.05:10.0;]
+function measure_phase_noise(t,rho)
+    x = real(expect(x_op,rho))
+    n = real(expect(n_op,rho))
+    return [x,n]
+end
+tout,res = timeevolution.master(tspan,psi_0,H,J;rates = rates,fout = measure_phase_noise)
+x_data = [r[1] for r in res]
+n_data = [r[2] for r in res]
+p = plot(tout,x_data,label = "Coherence <x>",xlabel="Time(t)",ylabel="Expectation Value",
+    lw = 4,color=:black)
+plot!(p,tout,n_data,label="Photon Number <n>",linestyle=:dash,lw =4,color=:grey)
+display(p)
+
+
+
+
